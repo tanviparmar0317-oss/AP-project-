@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QComboBox, QSizePolicy
+    QPushButton, QLabel, QLineEdit, QComboBox, QSizePolicy,
+    QRadioButton, QButtonGroup
 )
 from PySide6.QtCore import QTimer, Qt
 
@@ -44,19 +45,30 @@ class MainView(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         root_layout = QVBoxLayout(central)
+        root_layout.setContentsMargins(15, 15, 15, 15)
+        root_layout.setSpacing(12)
 
         top_bar = QHBoxLayout()
+        top_bar.setSpacing(10)
 
-        self.port_input = QLineEdit("9000")
+        self.port_input = QLineEdit("12345")
         self.port_input.setFixedWidth(80)
         self.port_input.setPlaceholderText("Port")
 
         self.connect_btn = QPushButton("Connect")
+        self.connect_btn.setObjectName("connect_btn")
         self.disconnect_btn = QPushButton("Disconnect")
+        self.disconnect_btn.setObjectName("disconnect_btn")
         self.disconnect_btn.setEnabled(False)
 
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems(MODES)
+        self.mode_group = QButtonGroup(self)
+        self.radio_original = QRadioButton("Original")
+        self.radio_rms = QRadioButton("RMS")
+        self.radio_filtered = QRadioButton("Filtered")
+        self.radio_original.setChecked(True)
+        self.mode_group.addButton(self.radio_original)
+        self.mode_group.addButton(self.radio_rms)
+        self.mode_group.addButton(self.radio_filtered)
 
         self.channel_combo = QComboBox()
         self.channel_combo.addItems(CHANNEL_ITEMS)
@@ -74,7 +86,9 @@ class MainView(QMainWindow):
         top_bar.addWidget(self.disconnect_btn)
         top_bar.addSpacing(20)
         top_bar.addWidget(QLabel("Mode:"))
-        top_bar.addWidget(self.mode_combo)
+        top_bar.addWidget(self.radio_original)
+        top_bar.addWidget(self.radio_rms)
+        top_bar.addWidget(self.radio_filtered)
         top_bar.addWidget(QLabel("Channel:"))
         top_bar.addWidget(self.channel_combo)
         top_bar.addSpacing(20)
@@ -154,8 +168,15 @@ class MainView(QMainWindow):
         if not active:
             self.plot_timer.stop()
 
+    def _get_active_mode(self) -> str:
+        if self.radio_rms.isChecked():
+            return "RMS"
+        elif self.radio_filtered.isChecked():
+            return "Filtered"
+        return "Original"
+
     def _refresh_vispy(self):
-        mode = self.mode_combo.currentText()
+        mode = self._get_active_mode()
         data = self.viewmodel.get_data_for_mode(mode)
 
         if self.show_all_channels:
@@ -177,6 +198,18 @@ class MainView(QMainWindow):
         label = "Single Channel View" if self.show_all_channels else "Plot All Channels"
         self.plot_all_btn.setText(label)
         self.channel_combo.setEnabled(not self.show_all_channels)
+
+        # Adjust camera view range to fit all stacked channels or single channel
+        if self.show_all_channels:
+            self.view.camera.set_range(
+                x=(TIME_AXIS[0], TIME_AXIS[-1]),
+                y=(-0.0005, NUM_CHANNELS * ALL_CHANNEL_OFFSET + 0.0005)
+            )
+        else:
+            self.view.camera.set_range(
+                x=(TIME_AXIS[0], TIME_AXIS[-1]),
+                y=(-0.001, 0.001)
+            )
 
     def _open_offline_window(self):
         win = OfflineWindow(self.viewmodel, self)
