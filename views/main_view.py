@@ -13,7 +13,7 @@ from vispy import scene
 from vispy.scene import visuals
 
 from viewmodels.main_viewmodel import MainViewModel
-from models.data_model import NUM_CHANNELS, BUFFER_SIZE, SAMPLE_RATE
+from Constants import NUM_CHANNELS, BUFFER_SIZE, SAMPLE_RATE
 
 
 MODES = ["Original", "RMS", "Filtered"]
@@ -85,7 +85,7 @@ class MainView(QMainWindow):
 
         root_layout.addLayout(top_bar)
 
-        self.canvas = scene.SceneCanvas(keys="interactive", show=False, bgcolor="black")
+        self.canvas = scene.SceneCanvas(keys="interactive", show=False, bgcolor="white")
         self.canvas.native.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         root_layout.addWidget(self.canvas.native)
 
@@ -94,13 +94,13 @@ class MainView(QMainWindow):
 
         self.line = visuals.Line(
             pos=np.column_stack([TIME_AXIS, np.zeros(BUFFER_SIZE)]),
-            color="lime",
+            color="blue",
             width=1,
             parent=self.view.scene
         )
 
         self.all_lines = []
-        colors = plt.cm.rainbow(np.linspace(0, 1, NUM_CHANNELS))
+        colors = plt.cm.Blues(np.linspace(0.5, 0.9, NUM_CHANNELS))
         for i in range(NUM_CHANNELS):
             color = tuple(colors[i][:3]) + (1.0,)
             ln = visuals.Line(
@@ -116,9 +116,9 @@ class MainView(QMainWindow):
             pos=[[TIME_AXIS[0], 0], [TIME_AXIS[-1], 0]],
             tick_direction=(0, -1),
             font_size=8,
-            axis_color="white",
-            tick_color="white",
-            text_color="white",
+            axis_color="black",
+            tick_color="black",
+            text_color="black",
             parent=self.view.scene
         )
 
@@ -210,8 +210,8 @@ class OfflineWindow(QWidget):
 
         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
         self.fig, self.ax = plt.subplots(figsize=(9, 4))
-        self.canvas = FigureCanvas(self.fig)
-        layout.addWidget(self.canvas)
+        self.mpl_canvas = FigureCanvas(self.fig)
+        layout.addWidget(self.mpl_canvas)
 
         self.plot_btn.clicked.connect(self._do_plot)
         self._do_plot()
@@ -236,4 +236,4 @@ class OfflineWindow(QWidget):
         self.ax.set_title(f"Channel {ch + 1} — {mode}")
         self.ax.grid(True, alpha=0.3)
         self.fig.tight_layout()
-        self.canvas.draw()
+        self.mpl_canvas.draw()
