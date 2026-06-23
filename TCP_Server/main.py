@@ -1,10 +1,24 @@
+"""
+Mock EMG TCP Server
+===================
+Streams the contents of recording.pkl as a continuous loop of
+32-channel x 18-sample float64 packets (4608 bytes each) to any
+connected client at the real-time sample rate defined in the file.
+
+Usage
+-----
+    python TCP_Server/main.py                     # default: localhost:12345
+    python TCP_Server/main.py --port 9000         # custom port
+    python TCP_Server/main.py --host 0.0.0.0 --port 12345  # all interfaces
+"""
+
 import os
 import socket
 import pickle
 import numpy as np
 import time
 import threading
-from pathlib import Path
+import argparse
 
 
 class EMGTCPServer:
@@ -27,7 +41,7 @@ class EMGTCPServer:
         self.load_data()
 
     def load_data(self):
-        """Load the EMG data from the PKL file"""
+        """Load EMG data from the PKL file into memory."""
         try:
             with open(self.pkl_file, 'rb') as f:
                 self.data = pickle.load(f)
@@ -40,7 +54,7 @@ class EMGTCPServer:
             raise
 
     def print_data(self, data, window_index):
-        """Print the current chunk of data"""
+        """Print the current chunk of data (debug helper)."""
         print(f"\nSending window {window_index}:")
         print(f"Shape: {data.shape}")
         print("Data values:")
@@ -49,7 +63,7 @@ class EMGTCPServer:
         print("-" * 50)
 
     def start(self):
-        """Start the TCP server"""
+        """Bind the server socket and start accepting connections."""
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
@@ -57,20 +71,23 @@ class EMGTCPServer:
         self.running = True
         print(f"Server started on {self.host}:{self.port}")
 
-        # Start accepting connections in a separate thread
+        # Accept connections in a separate thread so the main thread stays alive
         accept_thread = threading.Thread(target=self.accept_connections)
         accept_thread.daemon = True
         accept_thread.start()
 
     def accept_connections(self):
-        """Accept incoming connections"""
+        """Accept incoming client connections in a loop."""
         while self.running:
             try:
                 client_socket, address = self.server_socket.accept()
                 print(f"New connection from {address}")
                 self.clients.append(client_socket)
-                # Start a new thread to handle this client
-                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+                # Each client gets its own streaming thread
+                client_thread = threading.Thread(
+                    target=self.handle_client,
+                    args=(client_socket,)
+                )
                 client_thread.daemon = True
                 client_thread.start()
             except Exception as e:
@@ -78,6 +95,13 @@ class EMGTCPServer:
                     print(f"Error accepting connection: {e}")
 
     def handle_client(self, client_socket):
+        """
+        Stream EMG data to a single connected client.
+
+        Sends packets of shape (32, 18) as raw float64 bytes in a loop,
+        cycling back to the start of the recording when it ends.
+        Packet send rate is throttled to match the real sampling frequency.
+        """
         try:
             num_windows = self.emg_signal.shape[2]
             window_index = 0
@@ -90,9 +114,11 @@ class EMGTCPServer:
                     print("server shape:", current_window.shape)
                     print("server bytes:", current_window.nbytes)
 
+                # Send the full packet atomically — sendall handles partial sends
                 data_bytes = current_window.tobytes(order="C")
                 client_socket.sendall(data_bytes)
 
+                # Throttle to match real-time sample rate
                 sleep_time = self.SAMPLES_PER_PACKET / self.sampling_rate
                 time.sleep(sleep_time)
 
@@ -106,7 +132,7 @@ class EMGTCPServer:
             client_socket.close()
 
     def stop(self):
-        """Stop the TCP server"""
+        """Stop the server and close all client connections."""
         self.running = False
         if self.server_socket:
             self.server_socket.close()
@@ -117,11 +143,22 @@ class EMGTCPServer:
 
 
 if __name__ == "__main__":
-    # Create and start the server
-    server = EMGTCPServer()
+    parser = argparse.ArgumentParser(
+        description="Mock EMG TCP server — streams recording.pkl data over TCP."
+    )
+    parser.add_argument(
+        "--host", type=str, default="localhost",
+        help="Host address to bind to (default: localhost)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=12345,
+        help="Port number to listen on (default: 12345)"
+    )
+    args = parser.parse_args()
+
+    server = EMGTCPServer(host=args.host, port=args.port)
     try:
         server.start()
-        # Keep the main thread alive
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
