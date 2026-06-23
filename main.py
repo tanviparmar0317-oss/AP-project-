@@ -1,6 +1,24 @@
+"""
+TCP Signal Visualizer — Application Entry Point
+================================================
+Initialises the Qt application, applies the global stylesheet,
+and launches the MainView window.
+
+Usage
+-----
+Start the TCP server first (in a separate terminal):
+
+    python TCP_Server/main.py --port 12345
+
+Then launch the visualizer:
+
+    python main.py
+"""
+
 import sys
 from PySide6.QtWidgets import QApplication
 from views.main_view import MainView
+
 
 STYLESHEET = """
 QMainWindow {
