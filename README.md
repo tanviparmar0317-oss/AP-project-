@@ -265,6 +265,3 @@ pip install -r requirements.txt
 
 ---
 
-## License
-
-This project was developed as a final project for the *Applied Programming* course at FAU Erlangen-Nürnberg (Summer Semester 2026).
