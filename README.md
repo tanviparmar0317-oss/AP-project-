@@ -22,7 +22,7 @@
 
 ## Project Overview
 
-This application connects as a TCP client to a mock EMG data server, receives a continuous stream of **32-channel × 18-sample float64 packets** (4608 bytes each), and visualizes the incoming signal in real time using **VisPy**. After disconnecting, the buffered recording can be inspected offline using **Matplotlib**.
+This application connects as a TCP client to a mock EMG data server, receives a continuous stream of **32-channel x 18-sample float64 packets** (4608 bytes each), and visualizes the incoming signal in real time using **VisPy**. After disconnecting, the buffered recording can be inspected offline using **Matplotlib**.
 
 Key features:
 
@@ -39,9 +39,9 @@ Key features:
 
 | Member | Primary Role | Contributions |
 |--------|-------------|---------------|
-| **Tanvi** | Backend Engineer | Implemented the entire Model layer: TCP client with background threading (`tcp_client.py`), thread-safe rolling buffer (`data_buffer.py`), RMS and Butterworth bandpass filter signal processing (`signal_processor.py`). Co-responsible for error handling together with Kavy. |
-| **Kavy** | Frontend Engineer | Implemented the entire View layer: VisPy live plot canvas, single-channel and all-channels stacked view, Matplotlib offline inspection window, and the PySide6 UI layout (`main_view.py`). Also built and integrated the mock TCP server (`TCP_Server/main.py`). Co-responsible for error handling together with Tanvi. |
-| **Isha** | Integration & Documentation | Set up and maintained the GitHub repository, implemented the ViewModel layer connecting View and Model (`main_viewmodel.py`), defined shared application constants (`Constants.py`), wrote the application entry point (`main.py`), and authored the project documentation (`README.md`). |
+| **Tanvi** | Backend Engineer | Implemented the entire Model layer: TCP client with background threading (`tcp_client.py`), thread-safe rolling buffer (`data_buffer.py`), and signal processing including RMS and Butterworth bandpass filter (`signal_processor.py`). Also wrote the application entry point (`main.py`) and the mock TCP server (`TCP_Server/main.py`). Co-responsible for error handling together with Kavy. |
+| **Kavy** | Frontend Engineer | Implemented the entire View and ViewModel layer: VisPy live plot canvas, single-channel and all-channels stacked view, Matplotlib offline inspection window, PySide6 UI layout (`main_view.py`), ViewModel state management (`main_viewmodel.py`), and shared constants (`Constants.py`). Co-responsible for error handling together with Tanvi. |
+| **Isha** | Repository & Documentation | Set up and maintained the GitHub repository, managed version control and branch integration, and authored the project documentation (`README.md`). |
 
 ---
 
@@ -49,31 +49,31 @@ Key features:
 
 The application strictly follows the **Model-View-ViewModel** pattern to ensure clean separation of concerns.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                          VIEW                               │
-│  views/main_view.py                                         │
-│  · PySide6 widgets (buttons, dropdowns, status label)       │
-│  · VisPy canvas for live plotting                           │
-│  · Matplotlib window for offline inspection                 │
-│  · Calls ViewModel methods — never touches TCP directly     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │  Qt Signals / method calls
-┌──────────────────────────▼──────────────────────────────────┐
-│                       VIEWMODEL                             │
-│  viewmodels/main_viewmodel.py                               │
-│  · Manages connection state and buffer state                │
-│  · Routes signal mode selection (Original / RMS / Filtered) │
-│  · Scales raw microvolt data to volts for display           │
-│  · Emits Qt Signals to notify View of new data              │
-└──────────────────────────┬──────────────────────────────────┘
-                           │  method calls
-┌──────────────────────────▼──────────────────────────────────┐
-│                         MODEL                               │
-│  models/tcp_client.py     — background thread, TCP socket   │
-│  models/data_buffer.py    — thread-safe rolling buffer      │
-│  models/signal_processor.py — RMS and bandpass filter       │
-└─────────────────────────────────────────────────────────────┘
+```text
++---------------------------------------------------------+
+|                        VIEW                             |
+|  views/main_view.py                                     |
+|  . PySide6 widgets (buttons, dropdowns, status label)   |
+|  . VisPy canvas for live plotting                       |
+|  . Matplotlib window for offline inspection             |
+|  . Calls ViewModel methods — never touches TCP directly |
++-------------------------+-------------------------------+
+                          | Qt Signals / method calls
++-------------------------v-------------------------------+
+|                      VIEWMODEL                          |
+|  viewmodels/main_viewmodel.py                           |
+|  . Manages connection state and buffer state            |
+|  . Routes signal mode (Original / RMS / Filtered)       |
+|  . Scales raw microvolt data to volts for display       |
+|  . Emits Qt Signals to notify View of new data          |
++-------------------------+-------------------------------+
+                          | method calls
++-------------------------v-------------------------------+
+|                        MODEL                            |
+|  models/tcp_client.py      background thread, socket   |
+|  models/data_buffer.py     thread-safe rolling buffer  |
+|  models/signal_processor.py  RMS and bandpass filter   |
++---------------------------------------------------------+
 ```
 
 ### Data Flow
@@ -91,8 +91,8 @@ The application strictly follows the **Model-View-ViewModel** pattern to ensure 
 
 Each TCP packet contains:
 
-```
-32 channels × 18 samples × 8 bytes (float64) = 4608 bytes
+```text
+32 channels x 18 samples x 8 bytes (float64) = 4608 bytes
 ```
 
 Packets are reconstructed with:
@@ -103,13 +103,10 @@ chunk = np.frombuffer(raw_bytes, dtype=np.float64).reshape(32, 18)
 
 ### RMS — Root Mean Square
 
-A sliding-window RMS is computed per channel over the rolling buffer:
+A sliding-window RMS is computed per channel over the rolling buffer.
 
-**Window size:** 200 samples
-
-\[
-\text{RMS}[i] = \sqrt{\frac{1}{W} \sum_{k=0}^{W-1} x[i-k]^2}, \quad W = 200
-\]
+- **Window size:** 200 samples
+- **Formula:** RMS[i] = sqrt( (1/W) * sum( x[i-k]^2 ) ) for k = 0 to W-1, where W = 200
 
 ### Bandpass Filter
 
@@ -188,58 +185,58 @@ The GUI window will open. Enter port `12345` and click **Connect**.
 | **Mode** | Radio buttons | Switch between **Original**, **RMS**, and **Filtered** signal |
 | **Channel** | Dropdown | Select one of 32 channels for single-channel view |
 | **Plot All Channels / Single Channel View** | Toggle button | Switch between stacked 32-channel overview and single-channel view |
-| **Offline Inspect** | Button | Open static Matplotlib plot of the recorded buffer (available after disconnect) |
+| **Offline Inspect** | Button | Opens a static Matplotlib plot of the recorded buffer (available after disconnect) |
 | **Status bar** | Label | Displays connection state and error messages |
 
 ### Typical Workflow
 
 1. Start the TCP server in Terminal 1.
 2. Run `main.py` in Terminal 2 — the GUI opens.
-3. Enter port `12345` → click **Connect** → live signal appears.
-4. Use **Channel** dropdown and **Mode** radio buttons to explore the data.
-5. Click **Plot All Channels** for a full overview of all 32 channels.
-6. Click **Disconnect** → then **Offline Inspect** to open the Matplotlib inspection window.
-7. In the offline window, select channel and mode to review the full recorded session.
+3. Enter port `12345` and click **Connect** — live signal begins scrolling.
+4. Use the **Channel** dropdown and **Mode** radio buttons to explore the data.
+5. Click **Plot All Channels** for a full overview of all 32 channels stacked vertically.
+6. Click **Disconnect** then **Offline Inspect** to open the Matplotlib inspection window.
+7. In the offline window, select a channel and mode to review the full recorded session.
 
 ### Error Handling
 
 The application handles the following situations without crashing:
 
-- **Wrong port / server not running** → status label shows `"Could not connect: [Errno 61] Connection refused"`
-- **Connection lost mid-stream** → status label updates, streaming stops cleanly
-- **Offline Inspect with no data** → status label shows `"No data available for offline plotting"`
-- **Invalid channel selection** → input is validated before passing to the ViewModel
+- **Wrong port / server not running** — status label shows `Could not connect: [Errno 61] Connection refused`
+- **Connection lost mid-stream** — status label updates and streaming stops cleanly
+- **Offline Inspect with no data** — status label shows `No data available for offline plotting`
+- **Invalid channel selection** — input is validated before passing to the ViewModel
 
 ---
 
 ## Project Structure
 
-```
+```text
 AP-project-/
-├── main.py                     # Application entry point and global Qt stylesheet
-├── Constants.py                # Shared parameters: channels, buffer size, sample rate
-├── requirements.txt            # All Python dependencies
-├── README.md                   # This file
-├── recording.pkl               # Mock EMG biosignal database (used by TCP server)
+├── main.py                      # Application entry point and global Qt stylesheet
+├── Constants.py                 # Shared parameters: channels, buffer size, sample rate
+├── requirements.txt             # All Python dependencies
+├── README.md                    # This file
+├── recording.pkl                # Mock EMG biosignal database (used by TCP server)
 ├── TCP_Server/
-│   └── main.py                 # Bundled mock TCP server — reads recording.pkl and streams data
+│   └── main.py                  # Bundled mock TCP server — streams recording.pkl data
 ├── models/
 │   ├── __init__.py
-│   ├── tcp_client.py           # Background TCP listener thread and packet reconstruction
-│   ├── data_buffer.py          # Thread-safe rolling NumPy buffer for incoming chunks
-│   └── signal_processor.py    # Butterworth bandpass filter and sliding-window RMS
+│   ├── tcp_client.py            # Background TCP listener thread and packet reconstruction
+│   ├── data_buffer.py           # Thread-safe rolling NumPy buffer for incoming chunks
+│   └── signal_processor.py      # Butterworth bandpass filter and sliding-window RMS
 ├── viewmodels/
 │   ├── __init__.py
-│   └── main_viewmodel.py       # State management, mode routing, µV→V scaling, Qt Signals
+│   └── main_viewmodel.py        # State management, mode routing, uV to V scaling, Qt Signals
 └── views/
-    └── main_view.py            # PySide6 UI layout, VisPy canvas, Matplotlib offline window
+    └── main_view.py             # PySide6 UI layout, VisPy canvas, Matplotlib offline window
 ```
 
 ---
 
 ## Dependencies
 
-```
+```text
 numpy
 scipy
 matplotlib
@@ -265,3 +262,6 @@ pip install -r requirements.txt
 
 ---
 
+## License
+
+This project was developed as a final project for the *Applied Programming* course at FAU Erlangen-Nürnberg (Summer Semester 2026).
