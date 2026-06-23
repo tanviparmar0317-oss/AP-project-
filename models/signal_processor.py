@@ -53,7 +53,7 @@ def compute_rms(signal: np.ndarray, window_size: int = 200) -> np.ndarray:
     return np.sqrt(sum_window / counts)
 
 
-def compute_filtered(signal: np.ndarray) -> np.ndarray:
+def compute_filtered(signal: np.ndarray, fs: float = 2048.0) -> np.ndarray:
     """
     Apply a zero-phase 4th-order Butterworth bandpass filter (20–500 Hz).
 
