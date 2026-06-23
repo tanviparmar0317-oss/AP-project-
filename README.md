@@ -129,7 +129,7 @@ Zero-phase filtering via `sosfiltfilt` ensures no time-domain shift in the signa
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/tanviparmar0317-oss/AP-project-.git
+git clone https://github.com/kavyvaviya35-pixel/AP-project-.git
 cd AP-project-
 ```
 
